@@ -1,6 +1,6 @@
 name: Pull Request Check
 
-on: [pull_request]
+on: [ pull_request ]
 
 jobs:
   compliant:
@@ -12,6 +12,34 @@ jobs:
         uses: apache/skywalking-eyes@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  resolve-modules:
+    name: resolve module
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - id: set-matrix
+        run: ./hack/resolve-modules.sh
+
+  lint:
+    name: lint module
+    runs-on: ubuntu-latest
+    needs: resolve-modules
+    strategy:
+      matrix: ${{ fromJson(needs.resolve-modules.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          working-directory: ${{ matrix.workdir }}
+          args: -E gofumpt
+          skip-pkg-cache: true
 
   staticcheck:
     runs-on: self-hosted
